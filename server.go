@@ -25,6 +25,15 @@ type Req struct {
 	Args   []string
 }
 
+func (r Req) Encode() string {
+	if len(r.Args) == 0 {
+		return strings.Join([]string{r.Token, r.Method}, "\x1F")
+	}
+	return strings.Join([]string{r.Token, r.Method,
+		strings.Join(r.Args, "\x1F"),
+	}, "\x1F")
+}
+
 func Ret(s Status, rets ...string) Resp {
 	return Resp{
 		Status: s,
@@ -38,20 +47,7 @@ type Resp struct {
 }
 
 func (ret Resp) WriteTo(w http.ResponseWriter) {
-	switch ret.Status {
-	case StatusOK:
-		w.WriteHeader(http.StatusOK)
-	case StatusError:
-		w.WriteHeader(http.StatusBadRequest)
-	case StatusAuth:
-		w.WriteHeader(http.StatusUnauthorized)
-	case StatusBan:
-		w.WriteHeader(http.StatusForbidden)
-	case StatusInternalServerError:
-		w.WriteHeader(http.StatusInternalServerError)
-	default:
-		w.WriteHeader(http.StatusInternalServerError)
-	}
+	w.WriteHeader(http.StatusOK)
 	if len(ret.Rets) == 0 {
 		w.Write([]byte(ret.Status))
 	} else {
