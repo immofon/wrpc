@@ -73,7 +73,16 @@ func (fn HandleFunc) WrpcCall(r Req) Resp {
 	return fn(r)
 }
 
+type ServerStatus struct {
+	Count int64
+}
+type ServerStatusFunc func(*ServerStatus)
+
 type Server struct {
+	// statistics
+	status    *ServerStatus         // read/write via status_ch
+	status_ch chan ServerStatusFunc // never close
+
 	// read-only after init stage
 	handlers map[string]Handler
 
@@ -83,14 +92,36 @@ type Server struct {
 }
 
 const DefaultMaxContentLength = 65535
+const defaultServerStatusChanSize = 100
 
 func NewServer() *Server {
-	return &Server{
+	s := &Server{
+		status:    &ServerStatus{Count: 0},
+		status_ch: make(chan ServerStatusFunc, defaultServerStatusChanSize),
+
 		handlers: make(map[string]Handler),
 
 		Auth:             func(_ Req) bool { return true },
 		MaxContentLength: DefaultMaxContentLength,
 	}
+	go s.statisticsLoop()
+
+	return s
+}
+
+func (s *Server) statisticsLoop() {
+	for fn := range s.status_ch {
+		fn(s.status)
+	}
+}
+
+func (s *Server) Status() ServerStatus {
+	ch := make(chan ServerStatus, 1)
+	defer close(ch)
+	s.status_ch <- func(ss *ServerStatus) {
+		ch <- *ss
+	}
+	return <-ch
 }
 
 func (s *Server) Handler(method string, handler Handler) {
@@ -99,6 +130,7 @@ func (s *Server) Handler(method string, handler Handler) {
 	}
 
 	s.handlers[method] = handler
+
 }
 func (s *Server) HandleFunc(method string, fn HandleFunc) {
 	if fn == nil {
@@ -168,4 +200,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	ret := handler.WrpcCall(req)
 	ret.WriteTo(w)
+
+	s.status_ch <- func(ss *ServerStatus) {
+		ss.Count++
+	}
 }

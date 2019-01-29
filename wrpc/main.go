@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-gomail/gomail"
@@ -11,11 +13,50 @@ import (
 )
 
 func main() {
+	cmd := os.Getenv("cmd")
+	switch cmd {
+	case "daemon":
+		daemon()
+	case "watch":
+		watch()
+	case "test":
+		test()
+	default:
+		client()
+	}
+}
+
+func watch() {
+	c := wrpc.NewClient("http://localhost:8112/wrpc", "mofon")
+
+	for {
+		resp, err := c.Call(context.TODO(), "status/count")
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println(resp.Rets[0])
+		time.Sleep(time.Second)
+	}
+}
+func test() {
+	panic("TODO")
+}
+func client() {
+	panic("TODO")
+}
+
+func daemon() {
 	s := wrpc.NewServer()
 	s.Auth = func(r wrpc.Req) bool {
 		fmt.Printf("[Auth] :%s: %s\n", r.Method, r.Token)
 		return true
 	}
+	s.HandleFunc("status/count", func(r wrpc.Req) wrpc.Resp {
+		ss := s.Status()
+		return wrpc.Ret(wrpc.StatusOK, strconv.FormatInt(ss.Count, 10))
+	})
+
 	s.HandleFunc("time", func(r wrpc.Req) wrpc.Resp {
 		return wrpc.Ret(wrpc.StatusOK, time.Now().String())
 	})
