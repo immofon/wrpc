@@ -1,6 +1,7 @@
 package wrpc
 
 import (
+	"io"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -47,12 +48,14 @@ type Resp struct {
 }
 
 func (ret Resp) WriteTo(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 	if len(ret.Rets) == 0 {
-		w.Write([]byte(ret.Status))
+		io.Copy(w, strings.NewReader(string(ret.Status)))
 	} else {
 		data := strings.Join([]string{string(ret.Status), strings.Join(ret.Rets, "\x1F")}, "\x1F")
-		w.Write([]byte(data))
+		io.Copy(w, strings.NewReader(data))
 	}
 }
 
@@ -113,20 +116,19 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// the method must be post
 	if r.Method != "POST" {
-		Ret(StatusInternalServerError).WriteTo(w)
+		Ret(StatusInternalServerError, "method").WriteTo(w)
 		return
 	}
 
 	// MUST set ContentLength and (TODO) Less than MaxContentLength
 	if r.ContentLength > s.MaxContentLength {
-		Ret(StatusInternalServerError).WriteTo(w)
+		Ret(StatusInternalServerError, "content length").WriteTo(w)
 		return
-
 	}
 
 	raw, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		Ret(StatusInternalServerError).WriteTo(w)
+		Ret(StatusInternalServerError, "read body").WriteTo(w)
 		return
 
 	}
@@ -139,7 +141,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		token = data[0]
 		method = data[1]
 	} else {
-		Ret(StatusInternalServerError).WriteTo(w)
+		Ret(StatusInternalServerError, "encode request").WriteTo(w)
 		return
 	}
 	if len(data) > 2 {
@@ -148,9 +150,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	handler := s.handlers[method]
 	if handler == nil {
-		Ret(StatusInternalServerError).WriteTo(w)
+		Ret(StatusInternalServerError, "not found method").WriteTo(w)
 		return
-
 	}
 
 	req := Req{
