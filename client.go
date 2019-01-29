@@ -46,7 +46,7 @@ func (c *Client) Call(ctx context.Context, method string, args ...string) (Resp,
 		return Resp{}, err
 	}
 
-	data := strings.Split(string(raw), "\x1F")
+	data := strings.Split(string(raw), UnitSep)
 	var status Status
 	var rets []string
 	if len(data) > 0 {

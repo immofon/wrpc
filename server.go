@@ -7,6 +7,8 @@ import (
 	"strings"
 )
 
+const UnitSep = "\x1F"
+
 type Status string
 
 const (
@@ -28,11 +30,11 @@ type Req struct {
 
 func (r Req) Encode() string {
 	if len(r.Args) == 0 {
-		return strings.Join([]string{r.Token, r.Method}, "\x1F")
+		return strings.Join([]string{r.Token, r.Method}, UnitSep)
 	}
 	return strings.Join([]string{r.Token, r.Method,
-		strings.Join(r.Args, "\x1F"),
-	}, "\x1F")
+		strings.Join(r.Args, UnitSep),
+	}, UnitSep)
 }
 
 func Ret(s Status, rets ...string) Resp {
@@ -54,7 +56,7 @@ func (ret Resp) WriteTo(w http.ResponseWriter) {
 	if len(ret.Rets) == 0 {
 		io.Copy(w, strings.NewReader(string(ret.Status)))
 	} else {
-		data := strings.Join([]string{string(ret.Status), strings.Join(ret.Rets, "\x1F")}, "\x1F")
+		data := strings.Join([]string{string(ret.Status), strings.Join(ret.Rets, UnitSep)}, UnitSep)
 		io.Copy(w, strings.NewReader(data))
 	}
 }
@@ -110,7 +112,7 @@ func (s *Server) HandleFunc(method string, fn HandleFunc) {
 // POST
 // -> token|method{|args}
 // <- status{|rets}
-// tip: '|' represents '\x1F'
+// tip: '|' represents UnitSep '\x1F'
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
@@ -133,7 +135,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	data := strings.Split(string(raw), "\x1F")
+	data := strings.Split(string(raw), UnitSep)
 	var token string
 	var method string
 	var args []string
