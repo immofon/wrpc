@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/go-gomail/gomail"
-	"github.com/immofon/wrpc"
+	"github.com/webasis/wrpc"
 )
 
 func main() {
