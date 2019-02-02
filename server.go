@@ -1,6 +1,8 @@
 package wrpc
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -37,6 +39,11 @@ func (r Req) Encode() string {
 	}, UnitSep)
 }
 
+type Resp struct {
+	Status Status
+	Rets   []string
+}
+
 func Ret(s Status, rets ...string) Resp {
 	return Resp{
 		Status: s,
@@ -44,9 +51,16 @@ func Ret(s Status, rets ...string) Resp {
 	}
 }
 
-type Resp struct {
-	Status Status
-	Rets   []string
+func (resp Resp) OK() bool {
+	return resp.Status == StatusOK
+}
+func (resp Resp) Error() error {
+	if resp.OK() {
+		return nil
+	}
+
+	e := strings.Join(resp.Rets, " ")
+	return errors.New(fmt.Sprintf("error: [wrpc|%s] %s", string(resp.Status), e))
 }
 
 func (ret Resp) WriteTo(w http.ResponseWriter) {
