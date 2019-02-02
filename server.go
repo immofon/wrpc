@@ -54,7 +54,11 @@ func Ret(s Status, rets ...string) Resp {
 func (resp Resp) OK() bool {
 	return resp.Status == StatusOK
 }
-func (resp Resp) Error() error {
+func (resp Resp) Error(err error) error {
+	if err != nil {
+		return err
+	}
+
 	if resp.OK() {
 		return nil
 	}
