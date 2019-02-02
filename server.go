@@ -54,13 +54,21 @@ func Ret(s Status, rets ...string) Resp {
 func (resp Resp) OK() bool {
 	return resp.Status == StatusOK
 }
-func (resp Resp) Error(err error) error {
+func (resp Resp) Error(err error, expect_len int) error {
 	if err != nil {
 		return err
 	}
 
+	if expect_len < 0 {
+		expect_len = len(resp.Rets)
+	}
+
 	if resp.OK() {
-		return nil
+		if len(resp.Rets) == expect_len {
+			return nil
+		} else {
+			return errors.New("error: [wrpc|rets.length]")
+		}
 	}
 
 	e := strings.Join(resp.Rets, " ")
