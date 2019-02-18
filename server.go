@@ -231,3 +231,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ss.Count++
 	}
 }
+
+func (s *Server) Call(r Req) Resp {
+	if !s.Auth(r) {
+		return Ret(StatusAuth)
+	}
+
+	handler := s.handlers[r.Method]
+	if handler == nil {
+		return Ret(StatusInternalServerError, "not found method")
+	}
+
+	return handler.WrpcCall(r)
+}
+func (s *Server) CallWithoutAuth(r Req) Resp {
+	handler := s.handlers[r.Method]
+	if handler == nil {
+		return Ret(StatusInternalServerError, "not found method")
+	}
+
+	return handler.WrpcCall(r)
+}
