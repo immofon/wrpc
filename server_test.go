@@ -17,16 +17,27 @@ func TestServer(t *testing.T) {
 	s.HandleFunc("echo", func(r Req) Resp {
 		return Ret(StatusOK, r.Args...)
 	})
+	s.Alias("echo", "alias_echo")
 
 	http.Handle("/wrpc", s)
 	go http.ListenAndServe(":8112", nil)
-	time.Sleep(time.Second)
+	time.Sleep(time.Millisecond * 10)
 
 	c := NewClient("http://localhost:8112/wrpc", "mofon")
 	ret, err := c.Call(context.TODO(), "echo", "hello", "world")
 	if err != nil {
 		t.Error(err)
 	}
+	if ret.Status != StatusOK || ret.Rets[0] != "hello" || ret.Rets[1] != "world" {
+		t.Error(ret)
+	}
 
-	fmt.Println(ret)
+	ret, err = c.Call(context.TODO(), "alias_echo", "hello", "world")
+	if err != nil {
+		t.Error(err)
+	}
+	if ret.Status != StatusOK || ret.Rets[0] != "hello" || ret.Rets[1] != "world" {
+		t.Error(ret)
+	}
+
 }

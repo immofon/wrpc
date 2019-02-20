@@ -232,6 +232,15 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) Alias(method, alias string) {
+	h := s.handlers[method]
+	if h == nil {
+		panic("wrpc.alias: not registed method:" + method)
+	}
+
+	s.handlers[alias] = h
+}
+
 func (s *Server) Call(r Req) Resp {
 	if !s.Auth(r) {
 		return Ret(StatusAuth)
