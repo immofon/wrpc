@@ -19,6 +19,11 @@ func TestServer(t *testing.T) {
 	})
 	s.Alias("echo", "alias_echo")
 
+	s.HandleFunc("panic", func(r Req) Resp {
+		panic("test")
+		return Ret(StatusOK)
+	})
+
 	http.Handle("/wrpc", s)
 	go http.ListenAndServe(":8112", nil)
 	time.Sleep(time.Millisecond * 10)
@@ -37,6 +42,14 @@ func TestServer(t *testing.T) {
 		t.Error(err)
 	}
 	if ret.Status != StatusOK || ret.Rets[0] != "hello" || ret.Rets[1] != "world" {
+		t.Error(ret)
+	}
+
+	ret, err = c.Call(context.TODO(), "panic")
+	if err != nil {
+		t.Error(err)
+	}
+	if ret.Status != StatusInternalServerError || ret.Rets[0] != "panic" {
 		t.Error(ret)
 	}
 

@@ -208,23 +208,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		args = data[2:]
 	}
 
-	handler := s.handlers[method]
-	if handler == nil {
-		Ret(StatusInternalServerError, "not found method").WriteTo(w)
-		return
-	}
-
-	req := Req{
+	ret := s.Call(Req{
 		Token:  token,
 		Method: method,
 		Args:   args,
-	}
-	if !s.Auth(req) {
-		Ret(StatusAuth).WriteTo(w)
-		return
-	}
-
-	ret := handler.WrpcCall(req)
+	})
 	ret.WriteTo(w)
 
 	s.status_ch <- func(ss *ServerStatus) {
@@ -246,14 +234,15 @@ func (s *Server) Call(r Req) Resp {
 		return Ret(StatusAuth)
 	}
 
-	handler := s.handlers[r.Method]
-	if handler == nil {
-		return Ret(StatusInternalServerError, "not found method")
-	}
-
-	return handler.WrpcCall(r)
+	return s.CallWithoutAuth(r)
 }
-func (s *Server) CallWithoutAuth(r Req) Resp {
+func (s *Server) CallWithoutAuth(r Req) (resp Resp) {
+	defer func() {
+		if r := recover(); r != nil {
+			resp = Ret(StatusInternalServerError, "panic")
+		}
+	}()
+
 	handler := s.handlers[r.Method]
 	if handler == nil {
 		return Ret(StatusInternalServerError, "not found method")
